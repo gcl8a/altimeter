@@ -33,7 +33,7 @@
 
 #include <Wire.h>
 
-#include "SparkFunMPL3115A2.h"
+#include "MPL3115A2.h"
 
 //Begin
 /*******************************************************************************************/
@@ -48,8 +48,7 @@ void MPL3115A2::Init(void)
     
     setOversampleRate(7); // Set Oversample to the recommended 128
     enableEventFlags(); // Enable all three pressure and temp event flags
-    enableInt1DataRdy(); //enable interrupts
-
+    EnableInt1DataRdy(); //enable interrupts
 }
 
 //Returns the number of meters above sea level
@@ -75,7 +74,7 @@ int MPL3115A2::ReadDataAlt(void)
 	// shift the value over 4 spots to the right and divide by 16 (since 
 	// there are 16 values in 4-bits). 
 	float tempcsb = (lsb>>4)/16.0;
-	altitude = (float)( (msb << 8) | csb) + tempcsb;
+	workingDatum.altitude = (float)( (msb << 8) | csb) + tempcsb;
     
     msb = Wire.read();
     lsb = Wire.read();
@@ -99,25 +98,33 @@ int MPL3115A2::ReadDataAlt(void)
     // there are 16 values in 4-bits).
     float templsb = (lsb>>4)/16.0; //temp, fraction of a degree
     
-    temperature = (float)(msb + templsb);
+    float temperature = (float)(msb + templsb);
     if (negSign) temperature = 0 - temperature;
     
-    timestamp = millis();
+    workingDatum.temperature = temperature;
+    
+    workingDatum.timestamp = millis();
     
     return 1;
 }
 
-int8_t MPL3115A2::SetOffset(int8_t offset)
+int8_t MPL3115A2::SetOffset(int offset)
 {
     setModeStandby();
-    IIC_Write(OFF_H, offset);
+    
+    //-128 <= offset <= 127
+    if(offset < -128) offset = -128;
+    if(offset >  127) offset =  127;
+    
+    IIC_Write(OFF_H, (int8_t)offset);
     
     return IIC_Read(OFF_H);
 }
 
-int8_t MPL3115A2::CalcOffset(float currAlt)
+float MPL3115A2::CalcOffset(float currAlt)
 {
-    //take a reading and stop
+    //We need to clear the data ready register, but there might be a pending request
+    //so we'll go through the whole cycle once
     toggleOneShot();
     while(!CheckInt1()) {} //wait for new data
     ReadDataAlt(); //clears interrupt
@@ -125,22 +132,17 @@ int8_t MPL3115A2::CalcOffset(float currAlt)
     setModeStandby();
     IIC_Write(OFF_H, 0); //clear offset
 
+    //Now take a fresh reading
     toggleOneShot();
     while(!CheckInt1()) {} //wait for new data
     ReadDataAlt();
 
-    float fOffset = currAlt - altitude;
-    if(fOffset < -126) fOffset = -126;
-    if(fOffset >  126) fOffset =  126;
+    //calculate the offset and write it
+    float fOffset = currAlt - workingDatum.altitude;
 
-    int8_t offset = fOffset;
-    IIC_Write(OFF_H, offset);
-
-    //setModeActive();
-
-    return IIC_Read(OFF_H);
+    return fOffset;
 }
-//
+
 //
 //Reads the current pressure in Pa
 //Unit must be set in barometric pressure mode
@@ -185,58 +187,6 @@ float MPL3115A2::readPressure()
 
 	return(pressure);
 }
-//
-//float MPL3115A2::readTemp()
-//{
-////    if(IIC_Read(STATUS) & (1<<1) == 0) toggleOneShot(); //Toggle the OST bit causing the sensor to immediately take another reading
-////
-////    //Wait for TDR bit, indicates we have new temp data
-////    int counter = 0;
-////    while( (IIC_Read(STATUS) & (1<<1)) == 0)
-////    {
-////        if(++counter > 600) return(-999); //Error out after max of 512ms for a read
-////        delay(1);
-////    }
-////
-//    // Read temperature registers
-//    Wire.beginTransmission(MPL3115A2_ADDRESS);
-//    Wire.write(OUT_T_MSB);  // Address of data to get
-//    Wire.endTransmission(false); // Send data to I2C dev with option for a repeated start. THIS IS NECESSARY and not supported before Arduino V1.0.1!
-//    if (Wire.requestFrom(MPL3115A2_ADDRESS, 2) != 2) { // Request two bytes
-//        return -999;
-//    }
-//
-//    byte msb, lsb;
-//    msb = Wire.read();
-//    lsb = Wire.read();
-//
-////    toggleOneShot(); //Toggle the OST bit causing the sensor to immediately take another reading
-//
-//    //Negative temperature fix by D.D.G.
-//    word foo = 0;
-//    bool negSign = false;
-//
-//    //Check for 2s compliment
-//    if(msb > 0x7F)
-//    {
-//        foo = ~((msb << 8) + lsb) + 1;  //2’s complement
-//        msb = foo >> 8;
-//        lsb = foo & 0x00F0;
-//        negSign = true;
-//    }
-//
-//    // The least significant bytes l_altitude and l_temp are 4-bit,
-//    // fractional values, so you must cast the calulation in (float),
-//    // shift the value over 4 spots to the right and divide by 16 (since
-//    // there are 16 values in 4-bits).
-//    float templsb = (lsb>>4)/16.0; //temp, fraction of a degree
-//
-//    float temperature = (float)(msb + templsb);
-//
-//    if (negSign) temperature = 0 - temperature;
-//
-//    return(temperature);
-//}
 
 //Sets the mode to Barometer
 //CTRL_REG1, ALT bit
@@ -296,26 +246,25 @@ void MPL3115A2::enableEventFlags()
   IIC_Write(PT_DATA_CFG, 0x07); // Enable all three pressure and temp event flags 
 }
 
-void MPL3115A2::enableInt1DataRdy()
+void MPL3115A2::EnableInt1DataRdy()
 {
-    IIC_Write(CTRL_REG3, 0x20); // interrupt active HIGH
-    IIC_Write(CTRL_REG4, 0x80); // enables data ready interrupt (defaults to INT2)
-    IIC_Write(CTRL_REG5, 0x80); // routes to INT1
+    IIC_Write(CTRL_REG3, 0x20); // interrupt active HIGH (default is active LOW)
+    IIC_Write(CTRL_REG4, 0x80); // enable data ready interrupt
+    IIC_Write(CTRL_REG5, 0x80); // route to INT1 (default is INT2)
 }
 
 //Clears then sets the OST bit which causes the sensor to immediately take another reading
 //Needed to sample faster than 1Hz
 void MPL3115A2::toggleOneShot(void)
 {
-  byte tempSetting = IIC_Read(CTRL_REG1); //Read current settings
-  tempSetting &= ~(1<<1); //Clear OST bit
-  IIC_Write(CTRL_REG1, tempSetting);
+    byte tempSetting = IIC_Read(CTRL_REG1); //Read current settings
+    tempSetting &= ~(1<<1); //Clear OST bit
+    IIC_Write(CTRL_REG1, tempSetting);
 
-  tempSetting = IIC_Read(CTRL_REG1); //Read current settings to be safe
-  tempSetting |= (1<<1); //Set OST bit
-  IIC_Write(CTRL_REG1, tempSetting);
+    tempSetting = IIC_Read(CTRL_REG1); //Read current settings to be safe
+    tempSetting |= (1<<1); //Set OST bit
+    IIC_Write(CTRL_REG1, tempSetting);
 }
-
 
 // These are the two I2C functions in this sketch.
 byte MPL3115A2::IIC_Read(byte regAddr)

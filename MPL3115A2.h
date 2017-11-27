@@ -18,6 +18,7 @@
 #endif
 
 #include <Wire.h>
+#include <altimeter.h>
 
 #define MPL3115A2_ADDRESS 0x60 // Unshifted 7-bit I2C address for sensor
 
@@ -68,35 +69,6 @@
 #define OFF_T      0x2C
 #define OFF_H      0x2D
 
-class Altimeter
-{
-protected:
-    uint32_t timestamp;
-    float pressure = -99;
-    float altitude = -99;
-    float temperature = -99;
-    float humidity = -99;
-    
-public:
-    String MakeDataString(void)
-    {
-        char dataStr[100];
-        
-        sprintf(dataStr, "%lu,%2.2f,%2.2f,%2.2f",
-                timestamp,
-                pressure,
-                altitude,
-                temperature);
-        
-        return String(dataStr);
-    }
-    
-    String MakeAltString(void)
-    {        
-        return String(altitude);
-    }
-};
-
 class MPL3115A2 : public Altimeter
 {
 protected:
@@ -107,26 +79,30 @@ protected:
     byte IIC_Read(byte regAddr);
     void IIC_Write(byte regAddr, byte value);
     
-
 public:
     MPL3115A2(uint8_t int1Pin = -1, uint8_t int2Pin = -1)
         : interrupt1Pin(int1Pin), interrupt2Pin(int2Pin) {}
 
-  //Public Functions
-  void Init(); // Gets sensor on the I2C bus.
+    void Init(); // Gets sensor on the I2C bus.
+    
+    void EnableInt1DataRdy();
     bool CheckInt1() {return digitalRead(interrupt1Pin);}
-  int ReadDataAlt(); // Returns float with meters above sealevel. Ex: 1638.94
-    int8_t SetOffset(int8_t);
-    int8_t CalcOffset(float);
-  float readPressure(); // Returns float with barometric pressure in Pa. Ex: 83351.25
-  float readTemp(); // Returns float with current temperature in Celsius. Ex: 23.37
-  void setModeBarometer(); // Puts the sensor into Pascal measurement mode.
-  void setModeAltimeter(); // Puts the sensor into altimetery mode.
-  void setModeStandby(); // Puts the sensor into Standby mode. Required when changing CTRL1 register.
-  void setModeActive(); // Start taking measurements!
-  void setOversampleRate(byte); // Sets the # of samples from 1 to 128. See datasheet.
-  void enableEventFlags(); // Sets the fundamental event flags. Required during setup.
-    void enableInt1DataRdy();
+    
+    int ReadDataAlt(); // Returns float with meters above sealevel. Ex: 1638.94
+
+    float CalcOffset(float);
+    int8_t SetOffset(int);
+
+    float readPressure(); // Returns float with barometric pressure in Pa. Ex: 83351.25
+    float readTemp(); // Returns float with current temperature in Celsius. Ex: 23.37
+  
+    void setModeBarometer(); // Puts the sensor into Pascal measurement mode.
+    void setModeAltimeter(); // Puts the sensor into altimetery mode.
+    void setModeStandby(); // Puts the sensor into Standby mode. Required when changing CTRL1 register.
+    void setModeActive(); // Start taking measurements!
+    void setOversampleRate(byte); // Sets the # of samples from 1 to 128. See datasheet.
+
+    void enableEventFlags(); // Sets the fundamental event flags. Required during setup.
     void toggleOneShot();
 
   //Public Variables
