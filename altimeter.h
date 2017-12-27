@@ -8,6 +8,8 @@
 #ifndef altimeter_h
 #define altimeter_h
 
+#include <Arduino.h>
+
 struct AltimeterDatum
 {
     uint32_t timestamp = 0;
@@ -22,12 +24,13 @@ public:
     {
         char dataStr[100];
         
-        sprintf(dataStr, "%lu,%2.2f,%2.2f,%2.2f",
-                timestamp,
+        sprintf(dataStr, "%lu,%2.2f,%2.2f,%2.2f,%2.2f",
+                timestamp%1000,
                 pressure,
                 altitude,
-                temperature);
-        
+                temperature,
+                humidity);
+
         return String(dataStr);
     }
     
@@ -46,13 +49,7 @@ class Altimeter
 {
 protected:
     AltimeterDatum workingDatum; //someday make a FIFO?
-    
-//    uint32_t timestamp;
-//    float pressure = -99;
-//    float altitude = -99;
-//    float temperature = -99;
-//    float humidity = -99;
-    
+        
 public:
     String MakeDataString(void)
     {
