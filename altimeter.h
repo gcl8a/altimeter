@@ -10,6 +10,14 @@
 
 #include <Arduino.h>
 
+struct AltimeterDump
+{
+    //uint32_t timestamp = 0;
+    uint32_t mPascal = 0; //milliPascal
+    int16_t temperature; // hundreths of C
+    uint16_t humidity; //hundreths of %
+};
+
 struct AltimeterDatum
 {
     uint32_t timestamp = 0;
@@ -24,7 +32,7 @@ public:
     {
         char dataStr[100];
         
-        sprintf(dataStr, "%lu,%2.2f,%2.2f,%2.2f,%2.2f",
+        sprintf(dataStr, "%lu,%2.1f,%2.1f,%2.1f,%2.1f",
                 timestamp%1000,
                 pressure,
                 altitude,
@@ -43,6 +51,26 @@ public:
         
         return String(dataStr);
     }
+    
+    AltimeterDump MakeDataDump(void)
+    {
+        AltimeterDump dump;
+        
+        dump.mPascal = pressure * 1000;
+        dump.temperature = temperature * 100;
+        dump.humidity = humidity * 100;
+        
+        return dump;
+    }
+
+    String ParseDataDump(const AltimeterDump& dump)
+    {
+        pressure = dump.mPascal / 1000.0;
+        temperature = dump.temperature / 100.0;
+        humidity = dump.humidity / 100.0;
+        
+        return MakeDataString();
+    }
 };
 
 class Altimeter
@@ -60,6 +88,8 @@ public:
     {
         return workingDatum.MakeShortDataString();
     }
+    
+    AltimeterDump MakeDataDump(void) { return workingDatum.MakeDataDump();}
 };
 
 #endif /* altimeter_h */
