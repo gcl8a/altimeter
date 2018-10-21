@@ -5,6 +5,8 @@
 //  Created by Gregory C Lewin on 11/24/17.
 //
 
+//hus er ca. 135 moh
+
 #ifndef altimeter_h
 #define altimeter_h
 
@@ -33,7 +35,7 @@ public:
         char dataStr[100];
         
         sprintf(dataStr, "%lu,%2.1f,%2.1f,%2.1f,%2.1f",
-                timestamp%1000,
+                timestamp,
                 pressure,
                 altitude,
                 temperature,
@@ -87,6 +89,11 @@ public:
     String MakeShortDataString(void)
     {
         return workingDatum.MakeShortDataString();
+    }
+    
+    AltimeterDatum GetReading(void)
+    {
+        return workingDatum;
     }
     
     AltimeterDump MakeDataDump(void) { return workingDatum.MakeDataDump();}
