@@ -78,8 +78,8 @@ Distributed as-is; no warranty is given.
 #define BME280_HUMIDITY_LSB_REG			0xFE //Humidity LSB
 
 
-//Class SensorSettings.  This object is used to hold settings data.  The application
-//uses this classes' data directly.  The settings are adopted and sent to the sensor
+//Class BME280Settings.  This object is used to hold settings data.  The application
+//uses this class's data directly.  The settings are adopted and sent to the sensor
 //at special times, such as .begin.  Some are used for doing math.
 //
 //This is a kind of bloated way to do this.  The trade-off is that the user doesn't

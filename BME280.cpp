@@ -140,18 +140,18 @@ bool BME280::CheckForNewDatum(void)
 }
 
 /*
- * Function to read all at once. Not only is this faster than the poorly thought out
- * methods below, but it's also recommended by the data sheet, since reading a byte at
- * a time leads to inconsistent readings.
+ * Function to read all the data registers at once. Not only is this faster than the poorly
+ * thought out method in the original code, but it's also recommended by the data sheet,
+ * since reading a byte at a time leads to inconsistent readings.
  */
 
-bool BME280::ReadDatum(void) //should probable be "check" or similar
+bool BME280::ReadDatum(void)
 {
     Wire.beginTransmission(settings.I2CAddress);
     Wire.write(0xf7);
     Wire.endTransmission();
     
-    // request bytes from slave device
+    // request bytes from sensor
     uint8_t data[8];
     Wire.requestFrom(settings.I2CAddress, 8);
     uint8_t i = 0;
@@ -176,17 +176,10 @@ bool BME280::ReadDatum(void) //should probable be "check" or similar
     return 1;
 }
 
-
-//****************************************************************************//
-//
-//  Pressure Section
-//
-//****************************************************************************//
 float BME280::CalcPressure( int32_t adc_P, int32_t t_fine )
 {
 	// Returns pressure in Pa as unsigned 32 bit integer in Q24.8 format (24 integer bits and 8 fractional bits).
 	// Output value of “24674867” represents 24674867/256 = 96386.2 Pa = 963.862 hPa
-//	int32_t adc_P = ((uint32_t)readRegister(BME280_PRESSURE_MSB_REG) << 12) | ((uint32_t)readRegister(BME280_PRESSURE_LSB_REG) << 4) | ((readRegister(BME280_PRESSURE_XLSB_REG) >> 4) & 0x0F);
 	
 	int64_t var1, var2, p_acc;
 	var1 = ((int64_t)t_fine) - 128000;
@@ -213,17 +206,11 @@ float BME280::CalcAltitude( float pressure )
 	return (-45846.2)*(pow((pressure/101325.0), 0.190263) - 1.0);
 }
 
-//****************************************************************************//
-//
-//  Humidity Section
-//
-//****************************************************************************//
 float BME280::CalcHumidity( int32_t adc_H, int32_t t_fine )
 {
 	// Returns humidity in %RH as unsigned 32 bit integer in Q22. 10 format (22 integer and 10 fractional bits).
 	// Output value of “47445” represents 47445/1024 = 46. 333 %RH
-//	int32_t adc_H = ((uint32_t)readRegister(BME280_HUMIDITY_MSB_REG) << 8) | ((uint32_t)readRegister(BME280_HUMIDITY_LSB_REG));
-	
+    
 	int32_t var1;
 	var1 = (t_fine - ((int32_t)76800));
 	var1 = (((((adc_H << 14) - (((int32_t)calibration.dig_H4) << 20) - (((int32_t)calibration.dig_H5) * var1)) +
@@ -236,18 +223,10 @@ float BME280::CalcHumidity( int32_t adc_H, int32_t t_fine )
 	return (float)(var1>>12) / 1024.0;
 }
 
-
-//****************************************************************************//
-//
-//  Temperature Section
-//
-//****************************************************************************//
-
 float BME280::CalcTemperature( int32_t adc_T, int32_t& t_fine ) //C
 {
 	// Returns temperature in DegC, resolution is 0.01 DegC. Output value of “5123” equals 51.23 DegC.
-	// t_fine carries fine temperature as global value
-//	int32_t adc_T = ((uint32_t)readRegister(BME280_TEMPERATURE_MSB_REG) << 12) | ((uint32_t)readRegister(BME280_TEMPERATURE_LSB_REG) << 4) | ((readRegister(BME280_TEMPERATURE_XLSB_REG) >> 4) & 0x0F);
+	// t_fine is passed by reference since it is needed in calculations for pressure and humidity
 
 	int64_t var1, var2;
 
