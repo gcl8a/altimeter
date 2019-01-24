@@ -67,20 +67,22 @@ protected:
     const uint8_t bme280Addr;
     CalibrationData calibrationData;
 
+    void ReadCalibrationData(void);
+    
     //helper functions for converting raw readings to useful values
     float CalcTemperature( int32_t, int32_t& );
     float CalcPressure( int32_t, int32_t );
     float CalcAltitude( float );
     float CalcHumidity(  int32_t, int32_t  );
 
-    uint8_t readRegister(const uint8_t&);
-    void writeRegister(const uint8_t&, const uint8_t& );
-
 public:
     BME280( uint8_t addr ) : bme280Addr(addr) {}
-	
+    
     uint8_t Init(void);
     BME280Reading TakeReading(void);
+
+    uint8_t readRegister(const uint8_t&);
+    void writeRegister(const uint8_t&, const uint8_t& );
 };
 
 #endif  // End of __BME280_H__ definition check
