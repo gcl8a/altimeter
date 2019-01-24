@@ -261,7 +261,7 @@ float BME280::CalcPressure( int32_t adc_P, int32_t t_fine )
 
 float BME280::CalcAltitude( float pressure )
 {
-    return (-45846.2)*(pow((pressure/101325.0), 0.190263) - 1.0);
+    return 0;
 }
 
 float BME280::CalcHumidity( int32_t adc_H, int32_t t_fine )
@@ -280,4 +280,3 @@ float BME280::CalcHumidity( int32_t adc_H, int32_t t_fine )
     
     return (float)(var1>>12) / 1024.0;
 }
-
